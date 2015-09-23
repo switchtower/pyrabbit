@@ -61,6 +61,7 @@ class Client(object):
     """
     urls = {'overview': 'overview',
             'all_queues': 'queues',
+            'all_policies': 'policies',
             'all_exchanges': 'exchanges',
             'all_channels': 'channels',
             'all_connections': 'connections',
@@ -72,6 +73,8 @@ class Client(object):
             'whoami': 'whoami',
             'queues_by_vhost': 'queues/%s',
             'queues_by_name': 'queues/%s/%s',
+            'policies_by_vhost': 'policies/%s',
+            'policies_by_name': 'policies/%s/%s',
             'exchanges_by_vhost': 'exchanges/%s',
             'exchange_by_name': 'exchanges/%s/%s',
             'live_test': 'aliveness-test/%s',
@@ -90,6 +93,7 @@ class Client(object):
             'users_by_name': 'users/%s',
             'user_permissions': 'users/%s/permissions',
             'vhost_permissions_get': 'vhosts/%s/permissions'
+
             }
 
     json_headers = {"content-type": "application/json"}
@@ -675,6 +679,13 @@ class Client(object):
                                      headers=Client.json_headers)
         return messages
 
+
+
+
+
+
+
+
     #########################################
     # CONNS/CHANS & BINDINGS
     #########################################
@@ -833,3 +844,86 @@ class Client(object):
         """
         path = Client.urls['users_by_name'] % username
         return self.http.do_call(path, 'DELETE')
+
+    #############################################
+    ##              POLICIES
+    #############################################
+    def get_policies(self, vhost=None):
+        """
+        Get all policies, or all policies in a vhost if vhost is not None.
+        Returns a list.
+
+        :param string vhost: The virtual host to list policies for. If This is
+                    None (the default), all policies for the broker instance
+                    are returned.
+        :returns: A list of dicts, each representing a policy.
+        :rtype: list of dicts
+
+        """
+        if vhost:
+            vhost = quote(vhost, '')
+            path = Client.urls['policies_by_vhost'] % vhost
+        else:
+            path = Client.urls['all_policies']
+
+        policies = self.http.do_call(path, 'GET')
+        return policies or list()
+
+    def get_policy(self, vhost, name):
+        """
+        Get a single policy, which requires both vhost and name.
+
+        :param string vhost: The virtual host for the policy being requested.
+            If the vhost is '/', note that it will be translated to '%2F' to
+            conform to URL encoding requirements.
+        :param string name: The name of the policy being requested.
+        :returns: A dictionary of policy properties.
+        :rtype: dict
+
+        """
+        vhost = quote(vhost, '')
+        name = quote(name, '')
+        path = Client.urls['policies_by_name'] % (vhost, name)
+        policy = self.http.do_call(path, 'GET')
+        return policy
+
+    def create_policy(self, vhost, name, **kwargs):
+        """
+        Create a policy. The API documentation specifies that all of the body
+        elements are optional, so this method only requires arguments needed
+        to form the URI
+
+        :param string vhost: The vhost to create the policy in.
+        :param string name: The name of the policy
+
+        More on these operations can be found at:
+        http://www.rabbitmq.com/amqp-0-9-1-reference.html
+
+        """
+
+        vhost = quote(vhost, '')
+        name = quote(name, '')
+        path = Client.urls['policies_by_name'] % (vhost, name)
+
+        body = json.dumps(kwargs)
+
+        return self.http.do_call(path,
+                                 'PUT',
+                                 body,
+                                 headers=Client.json_headers)
+
+    def delete_policy(self, vhost, name):
+        """
+        Deletes the named policy from the named vhost.
+
+        :param string vhost: Vhost housing the policy to be deleted.
+        :param string qname: Name of the policy to delete.
+
+        Note that if you just want to delete the messages from a policy, you
+        should use purge_policy instead of deleting/recreating a policy.
+        """
+        vhost = quote(vhost, '')
+        qname = quote(qname, '')
+        path = Client.urls['policies_by_name'] % (vhost, qname)
+        return self.http.do_call(path, 'DELETE', headers=Client.json_headers)
+
