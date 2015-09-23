@@ -923,7 +923,7 @@ class Client(object):
         should use purge_policy instead of deleting/recreating a policy.
         """
         vhost = quote(vhost, '')
-        qname = quote(qname, '')
-        path = Client.urls['policies_by_name'] % (vhost, qname)
+        name = quote(name, '')
+        path = Client.urls['policies_by_name'] % (vhost, name)
         return self.http.do_call(path, 'DELETE', headers=Client.json_headers)
 
